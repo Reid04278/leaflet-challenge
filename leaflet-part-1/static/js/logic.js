@@ -1,127 +1,116 @@
 // the data url from USGS
-// My Map is going to show all the earthquakes from the past week
+// My Map is going to show all the earthquakes from the past month
 
-url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.json"
+var queryUrl = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson"
 
-// I'm going to get the marker color based on the depth of the earthquake
-function colorGet(depth) {
+d3.json(queryUrl).then(function (data) {
+    createFeatures(data.features);
+});
+
+function sizeMarker(mag) {
+    return mag * mag * 5000;
+}
+
+function colorMarker(depth) {
     if (depth >= 90) {
-        return "red"
-    } else {
-        if (depth > 70) {
-            return "orangered"
-        } else {
-            if (depth > 50) {
-                return "orange"
-            } else {
-                if (depth > 30) {
-                    return "gold"
-                } else {
-                    if (depth > 10) {
-                        return "yellow"
-                    } else {
-                        return "lightgreen"
-                    }
-                }
-            }
-        }
-    }
+        return '#EA2C2C'
+    } else if (depth >= 70) {
+        return '#EA822C'
+    } else if (depth >= 50) {
+        return '#EE9C00'
+    } else if (depth >= 30) {
+        return '#EECC00'
+    } else if (depth >= 10) {
+        return '#D4EE00'
+    } else return '#98EE00'
 };
 
+function createFeatures(earthquakeData) {
+    function onEachFeature(features, layer) {
+        layer.bindPopup(`<h3>${features.properties.place}</h3><hr><p>${new Date(features.properties.time)}</p>`);
 
-// Declare a function to create map features
-function featuresCreate(earthquakeData) {
-    
-    // Create some popup layers using earthquake title, the type, and the magnitude
-    function onEachFeature(feature, layer) {
-        layer.bindPopup("<p>Location: " + feature.properties.place + "</p>" + 
-            "<p>Depth: " + feature.geometry.coordinates[2] + "</p>" + 
-            "<p>Magnitude: " + feature.properties.mag + "</p>");
-    }
+    };
 
-    // Create some circle markers for each earthquake in the data set
-    var earthquakes = L.geoJSON(earthquakeData, {
-        pointToLayer: function(feature, latlng) {
-            // Make the circle radius dependent on the magnitude and get the color based on the depth
-            return new L.CircleMarker(latlng, {
-                radius: feature.properties.mag * 4,
-                fillOpacity: 1,
-                color: colorGet(feature.geometry.coordinates[2])
-            })
+    function pointToLayer(features, latlng) {
+        return L.circle(latlng,
+            {radius: sizeMarker(features.properties.mag),
+            color: colorMarker(features.geometry.coordinates[2]),
+        fillcolor: colorMarker(features.geometry.coordinates[2])})
 
             
-        },
-        // Append the popups on each feature
-        onEachFeature: onEachFeature
+
+    }
+    var earthquakes = L.geoJSON(earthquakeData, {
+        onEachFeature: onEachFeature,
+        pointToLayer: pointToLayer
     });
-    // Call the create map function using the earthquakes data
-    mapCreate(earthquakes);
+
+
+    createMap(earthquakes);
 
     
-};
+}
 
-// Declare function to create the map
-function mapCreate(earthquakes) {
-    // Get the initial light layer
-    var mapLayer = L.titleLayer('https://{s}.tile.openstreetmap.org/{z]/{x}/{y}.png' , {
+function createMap(earthquakes) {
+    var street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    })
+
+    var topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
     });
 
-    // Declare the map object and then set it to the map element in the DOM
+    var baseMaps = {
+        "Street Map": street,
+        'Topographic Map': topo
+
+    };
+
+    var overlayMaps = {
+        Earthquakes: earthquakes
+    };
+
     var myMap = L.map("map", {
-        center: [29.876019, -107.224121],
-        zoom: 4,
-        layers: [mapLayer, earthquakes]
-
+        center: [
+            37.09, -95.71
+        ],
+        zoom: 5,
+        layers: [street, earthquakes]
     });
 
-    // Create a legend for the map based on earh quake data and colors
-    var legend = L.control({position: "bottomright"});
+
+    L.control.layers(baseMaps, overlayMaps, {
+        collapsed: false
+    }).addTo(myMap);
+
+    var legend = L.control({ position: "bottomright"});
     legend.onAdd = function() {
         var div = L.DomUtil.create("div", "info legend");
-        var colors = [
-            "lightgreen",
-            "yellow",
-            "gold",
-            "orange",
-            "orangered",
-            "red"];
-
-            var legendInfo = "<h1>EarthquakeDepth<h1>" +
-                "<div class=\"labels\">" +
-                "<div class=\"max\">90+</div>" +
-                "<div class=\"fourth\">70-90</div>" +
-                "div class=\"third\">50-70</div>" +
-                "div class=\"second\">30-50</div>" +
-                "div class=\"first\">10-30</div>" +
-                "div class=\"min\"><10</div>" +
-            "</div>";
-
-            div.innerHTML = legendInfo;
-
-            colors.forEach(function(color) {
-                labels.push("<li style=\"backgroud-color: " + color + "\"</li>");
-            });
-
-            div,innerHTML += "<ul>" + labels.join("") + "</ul>";
-            return div;
+        var depths = [-10, 10, 30, 50, 70, 90];
+        var colors = ["#98EE00", "#D4EE00", "#EECC00", "#EE9C00", "#EA822C", "#EA2C2C"];
+        for (var i = 0; i< depth.length; i++) {
+            div.innerHTML += "<i style='background: " + colors[i] + "'></i> "
+            + depths[i] + (depths[i + 1] ? "&ndash;" + depths[i + 1] + "<br>" : "+");
+    }
+    return div;
+            
         };
 
-        // Append the legend to the map
-        legend.addTo(myMap);
+        legend.addTo(myMap)
+
+    }
+
+   
+
+   
+
 
     
 
     
 
-    
-};
 
-// Get earthquakes data
-d3.json(url, function(data) {
-    // Create features with the earthquakes data
-    featuresCreate(data.features)
-});
+
 
 
 
