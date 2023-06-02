@@ -3,14 +3,16 @@
 
 var queryUrl = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson"
 
+// Get the data once it gets a respnse
+
 d3.json(queryUrl).then(function (data) {
     createFeatures(data.features);
 });
-
+// Function for size of marker
 function sizeMarker(mag) {
     return mag * mag * 5000;
 }
-
+// Function for color of marker based on depth
 function colorMarker(depth) {
     if (depth >= 90) {
         return '#EA2C2C'
@@ -24,13 +26,13 @@ function colorMarker(depth) {
         return '#D4EE00'
     } else return '#98EE00'
 };
-
+// Function to create the features of the map
 function createFeatures(earthquakeData) {
     function onEachFeature(features, layer) {
         layer.bindPopup(`<h3>${features.properties.place}</h3><hr><p>${new Date(features.properties.time)}</p>`);
 
     };
-
+// function to create the circle markers
     function pointToLayer(features, latlng) {
         return L.circle(latlng,
             {radius: sizeMarker(features.properties.mag),
@@ -50,7 +52,7 @@ function createFeatures(earthquakeData) {
 
     
 }
-
+// Function to create map and legend
 function createMap(earthquakes) {
     var street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
